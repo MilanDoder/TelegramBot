@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
+    "TelegramBot/euroleague" 
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/joho/godotenv"
@@ -52,7 +54,27 @@ type VremeResponse struct {
 		Speed float64 `json:"speed"`
 	} `json:"wind"`
 }
+func handleKolo(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) string {
+    parts := strings.Fields(msg.Text)
 
+    if len(parts) < 2 {
+        return "⚠️ Upiši broj kola, npr: /kolo 5"
+    }
+
+    round, err := strconv.Atoi(parts[1])
+    if err != nil || round < 1 || round > 34 {
+        return "⚠️ Neispravan broj kola. Upiši broj između 1 i 34."
+    }
+
+    bot.Send(tgbotapi.NewChatAction(msg.Chat.ID, tgbotapi.ChatTyping))
+
+    games, err := euroleague.GetRoundResults(round)
+    if err != nil {
+        return fmt.Sprintf("❌ Greška: %s", err.Error())
+    }
+
+    return euroleague.FormatResults(round, games)
+}
 func dohvatiKurs(valuta string) string {
 	if valuta == "" {
 		valuta = "RSD"
@@ -227,8 +249,7 @@ func main() {
 		} else {
 			switch {
 			case tekst == "/start":
-				odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs [valuta] — kurs valute\n/kviz — sportski kviz\n/statistika — statistika korišćenja\n\nPrimeri:\n/prognoza Beograd\n/kurs EUR\n"
-			case tekst == "/vreme":
+    odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs [valuta] — kurs valute\n/kviz — sportski kviz\n/kolo [broj] — rezultati Evrolige\n/statistika — statistika korišćenja\n\nPrimeri:\n/prognoza Beograd\n/kurs EUR\n/kolo 5"			case tekst == "/vreme":
 				odgovor = "🕐 " + time.Now().Format("02.01.2006. u 15:04:05")
 			case tekst == "/slucajno":
 				odgovor = fmt.Sprintf("🎲 Tvoj broj je: %d", rand.Intn(100)+1)
@@ -249,6 +270,12 @@ func main() {
 				odgovor = "Napiši grad posle komande, npr:\n/prognoza Beograd"
 			case tekst == "/kviz":
 				odgovor = zapocniKviz(chatID)
+			case strings.HasPrefix(tekst, "/kolo"):
+				odgovor = handleKolo(bot, update.Message)
+				msg := tgbotapi.NewMessage(chatID, odgovor)
+				msg.ParseMode = "Markdown"
+				bot.Send(msg)
+				continue
 			// case strings.HasPrefix(tekst, "/ai "):
 			// 	pitanje := strings.TrimPrefix(tekst, "/ai ")
 			// 	odgovor = "🤖 " + pitajGemini(geminiKey, pitanje)
