@@ -75,6 +75,17 @@ func handleKolo(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) string {
 
     return euroleague.FormatResults(round, games)
 }
+
+func handleTabela(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) string {
+    bot.Send(tgbotapi.NewChatAction(msg.Chat.ID, tgbotapi.ChatTyping))
+
+    standings, err := GetStandings()
+    if err != nil {
+        return fmt.Sprintf("❌ Greška: %s", err.Error())
+    }
+
+    return FormatStandings(standings)
+}
 func dohvatiKurs(valuta string) string {
 	if valuta == "" {
 		valuta = "RSD"
