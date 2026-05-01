@@ -12,6 +12,7 @@ import (
 	"time"
 	"strconv"
     "TelegramBot/euroleague" 
+	"io"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/joho/godotenv"
@@ -56,18 +57,19 @@ type VremeResponse struct {
 }
 
 type TeamStanding struct {
-    Team     string `json:"club_name"`
-    Wins     int    `json:"wins"`
-    Losses   int    `json:"losses"`
-    Position int    `json:"position"`
+    Team     string `xml:"club_name"`
+    Wins     int    `xml:"wins"`
+    Losses   int    `xml:"losses"`
+    Position int    `xml:"position"`
 }
 
 type StandingsResponse struct {
-    Standings []TeamStanding `json:"data"`
+    XMLName  xml.Name       `xml:"standings"`
+    Teams    []TeamStanding `xml:"team"`
 }
 
 func GetStandings() ([]TeamStanding, error) {
-	url := "https://api-live.euroleague.net/v1/standings?seasonCode=E2024"
+    url := "https://api-live.euroleague.net/v1/standings?seasonCode=E2024"
 
     resp, err := http.Get(url)
     if err != nil {
@@ -75,20 +77,21 @@ func GetStandings() ([]TeamStanding, error) {
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("API vratio status: %d", resp.StatusCode)
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("greška pri čitanju: %w", err)
     }
 
     var result StandingsResponse
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        return nil, fmt.Errorf("greška pri parsiranju: %w", err)
+    if err := xml.Unmarshal(body, &result); err != nil {
+        return nil, fmt.Errorf("greška pri parsiranju XML: %w", err)
     }
 
-    if len(result.Standings) == 0 {
+    if len(result.Teams) == 0 {
         return nil, fmt.Errorf("nema podataka za tabelu")
     }
 
-    return result.Standings, nil
+    return result.Teams, nil
 }
 
 func FormatStandings(standings []TeamStanding) string {
