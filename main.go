@@ -7,12 +7,12 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-	"os"
-	"github.com/joho/godotenv"
 
 	"github.com/google/generative-ai-go/genai"
+	"github.com/joho/godotenv"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"google.golang.org/api/option"
 )
@@ -39,10 +39,10 @@ type VremeResponse struct {
 }
 
 func dohvatiKurs(valuta string) string {
-	if valuta == ""{
-		valuta="RSD"
+	if valuta == "" {
+		valuta = "RSD"
 	}
-	resp, err := http.Get("https://api.exchangerate-api.com/v4/latest/"+valuta)
+	resp, err := http.Get("https://api.exchangerate-api.com/v4/latest/" + valuta)
 	if err != nil {
 		return "❌ Greška pri dohvatanju kursa."
 	}
@@ -54,7 +54,7 @@ func dohvatiKurs(valuta string) string {
 	eur := 1.0 / data.Rates["EUR"]
 	usd := 1.0 / data.Rates["USD"]
 
-	return fmt.Sprintf("💶 1 EUR = %.2f %s\n💵 1 USD = %.2f %s", eur,valuta, usd,valuta)
+	return fmt.Sprintf("💶 1 EUR = %.2f %s\n💵 1 USD = %.2f %s", eur, valuta, usd, valuta)
 }
 
 func dohvatiVreme(grad, apiKey string) string {
@@ -89,10 +89,10 @@ func pitajGemini(apiKey, pitanje string) string {
 	}
 	defer client.Close()
 
-model := client.GenerativeModel("gemini-2.0-flash")
+	model := client.GenerativeModel("gemini-2.0-flash")
 	resp, err := model.GenerateContent(ctx, genai.Text(pitanje))
 	if err != nil {
-    	return "❌ Greška: " + err.Error()
+		return "❌ Greška: " + err.Error()
 	}
 
 	var rezultat strings.Builder
@@ -102,7 +102,6 @@ model := client.GenerativeModel("gemini-2.0-flash")
 	return rezultat.String()
 }
 
----------------------KvizPitanje
 func zapocniKviz(chatID int64) string {
 	pitanja := make([]KvizPitanje, len(svaPitanja))
 	copy(pitanja, svaPitanja)
@@ -173,14 +172,17 @@ func odgovoriNaKviz(chatID int64, odgovor string) string {
 
 	return odg + formatujPitanje(k)
 }
-------------------------------KVIZ
-
 
 func main() {
 	godotenv.Load()
+
 	telegramToken := os.Getenv("TELEGRAM_TOKEN")
-	//geminiKey     := os.Getenv("GEMINI_KEY")
-	weatherKey    := os.Getenv("WEATHER_KEY")
+	// geminiKey := os.Getenv("GEMINI_KEY")
+	weatherKey := os.Getenv("WEATHER_KEY")
+
+	if telegramToken == "" || geminiKey == "" || weatherKey == "" {
+		log.Fatal("❌ Nedostaju environment varijable!")
+	}
 
 	bot, err := tgbotapi.NewBotAPI(telegramToken)
 	if err != nil {
@@ -203,43 +205,46 @@ func main() {
 		statistika[tekst]++
 
 		var odgovor string
+
 		k, kvizAktivan := kvizovi[chatID]
 		if kvizAktivan && k.Aktivno && !strings.HasPrefix(tekst, "/") {
 			odgovor = odgovoriNaKviz(chatID, tekst)
 		} else {
-		switch {
-		case tekst == "/start":
-			odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs — kurs evra i dolara\n/statistika — statistika korišćenja\n/ai [pitanje] — pitaj AI\n\nPrimeri:\n/prognoza Beograd?"
-		case tekst == "/vreme":
-			odgovor = "🕐 " + time.Now().Format("02.01.2006. u 15:04:05")
-		case tekst == "/slucajno":
-			odgovor = fmt.Sprintf("🎲 Tvoj broj je: %d", rand.Intn(100)+1)
-		case strings.HasPrefix(tekst, "/kurs "):
-			pitanje := strings.TrimPrefix(tekst, "/kurs ")
-			odgovor = dohvatiKurs(pitanje)
-		case tekst == "/kurs":
-			odgovor = "Napiši pitanje posle komande, npr:\n/kurs RSD"
-		case tekst == "/statistika":
-			odgovor = "📊 Statistika korišćenja:\n"
-			for komanda, broj := range statistika {
-				odgovor += fmt.Sprintf("%s — %d puta\n", komanda, broj)
-			}
-		case strings.HasPrefix(tekst, "/prognoza "):
-			grad := strings.TrimPrefix(tekst, "/prognoza ")
-			odgovor = dohvatiVreme(grad, weatherKey)
-		case tekst == "/prognoza":
-			odgovor = "Napiši grad posle komande, npr:\n/prognoza Beograd"
-		case tekst == "/kviz":
+			switch {
+			case tekst == "/start":
+				odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs [valuta] — kurs valute\n/kviz — sportski kviz\n/statistika — statistika korišćenja
+				\n\nPrimeri:\n/prognoza Beograd\n/kurs EUR\n"
+			case tekst == "/vreme":
+				odgovor = "🕐 " + time.Now().Format("02.01.2006. u 15:04:05")
+			case tekst == "/slucajno":
+				odgovor = fmt.Sprintf("🎲 Tvoj broj je: %d", rand.Intn(100)+1)
+			case strings.HasPrefix(tekst, "/kurs "):
+				valuta := strings.TrimPrefix(tekst, "/kurs ")
+				odgovor = dohvatiKurs(valuta)
+			case tekst == "/kurs":
+				odgovor = dohvatiKurs("RSD")
+			case tekst == "/statistika":
+				odgovor = "📊 Statistika korišćenja:\n"
+				for komanda, broj := range statistika {
+					odgovor += fmt.Sprintf("%s — %d puta\n", komanda, broj)
+				}
+			case strings.HasPrefix(tekst, "/prognoza "):
+				grad := strings.TrimPrefix(tekst, "/prognoza ")
+				odgovor = dohvatiVreme(grad, weatherKey)
+			case tekst == "/prognoza":
+				odgovor = "Napiši grad posle komande, npr:\n/prognoza Beograd"
+			case tekst == "/kviz":
 				odgovor = zapocniKviz(chatID)
-		// case strings.HasPrefix(tekst, "/ai "):
-		// 	pitanje := strings.TrimPrefix(tekst, "/ai ")
-			//odgovor = "🤖 " + pitajGemini(geminiKey, pitanje)
-		// case tekst == "/ai":
-		// 	odgovor = "Napiši pitanje posle komande, npr:\n/ai Kako se pravi pasta?"
-		default:
-			odgovor = "Ne razumem tu komandu. Probaj /start"
+			// case strings.HasPrefix(tekst, "/ai "):
+			// 	pitanje := strings.TrimPrefix(tekst, "/ai ")
+			// 	odgovor = "🤖 " + pitajGemini(geminiKey, pitanje)
+			// case tekst == "/ai":
+			// 	odgovor = "Napiši pitanje posle komande, npr:\n/ai Kako se pravi pasta?"
+			default:
+				odgovor = "Ne razumem tu komandu. Probaj /start"
+			}
 		}
-	}
+
 		msg := tgbotapi.NewMessage(chatID, odgovor)
 		bot.Send(msg)
 	}
