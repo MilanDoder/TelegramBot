@@ -13,6 +13,7 @@ import (
 	"strconv"
     "TelegramBot/euroleague" 
 	"io"
+	"encoding/xml"  // ← dodaj ovo
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/joho/godotenv"
