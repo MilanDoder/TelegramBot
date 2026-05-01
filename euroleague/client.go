@@ -22,6 +22,63 @@ type APIResponse struct {
     Games []Game `json:"data"`
 }
 
+type TeamStanding struct {
+    Team    string `json:"club_name"`
+    Wins    int    `json:"wins"`
+    Losses  int    `json:"losses"`
+    Position int   `json:"position"`
+}
+
+type StandingsResponse struct {
+    Standings []TeamStanding `json:"data"`
+}
+
+func GetStandings() ([]TeamStanding, error) {
+    url := "https://live.euroleague.net/api/Standings?seasonCode=E2024"
+
+    resp, err := http.Get(url)
+    if err != nil {
+        return nil, fmt.Errorf("greška pri pozivu API-ja: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("API vratio status: %d", resp.StatusCode)
+    }
+
+    var result StandingsResponse
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("greška pri parsiranju: %w", err)
+    }
+
+    if len(result.Standings) == 0 {
+        return nil, fmt.Errorf("nema podataka za tabelu")
+    }
+
+    return result.Standings, nil
+}
+
+func FormatStandings(standings []TeamStanding) string {
+    msg := "🏀 *Evroliga — Tabela*\n\n"
+    msg += "`#   Tim              W  L`\n"
+
+    for _, t := range standings {
+        // Top 8 ide u playoff
+        marker := ""
+        if t.Position <= 8 {
+            marker = "🟢"
+        } else {
+            marker = "🔴"
+        }
+
+        msg += fmt.Sprintf("%s `%2d. %-16s %2d %2d`\n",
+            marker, t.Position, t.Team, t.Wins, t.Losses)
+    }
+
+    msg += "\n🟢 Playoff  🔴 Eliminisan"
+    return msg
+}
+
 func GetRoundResults(round int) ([]Game, error) {
     url := fmt.Sprintf("%s/Results?seasonCode=E2024&gameNumber=%d", baseURL, round)
 
