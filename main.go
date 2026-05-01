@@ -67,16 +67,28 @@ type StandingsResponse struct {
 }
 
 func GetStandings() ([]TeamStanding, error) {
-    // Probaj prvi API
-    standings, err := fetchStandings("https://live.euroleague.net/api/Standings?seasonCode=E2024")
+	url := "https://api-live.euroleague.net/v1/standings?seasonCode=E2024"
+
+    resp, err := http.Get(url)
     if err != nil {
-        // Fallback na drugi API
-        standings, err = fetchStandings("https://api-live.euroleague.net/v1/standings?seasonCode=E2024")
-        if err != nil {
-            return nil, fmt.Errorf("oba API-ja nedostupna, pokušaj kasnije")
-        }
+        return nil, fmt.Errorf("greška pri pozivu API-ja: %w", err)
     }
-    return standings, nil
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("API vratio status: %d", resp.StatusCode)
+    }
+
+    var result StandingsResponse
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("greška pri parsiranju: %w", err)
+    }
+
+    if len(result.Standings) == 0 {
+        return nil, fmt.Errorf("nema podataka za tabelu")
+    }
+
+    return result.Standings, nil
 }
 
 func FormatStandings(standings []TeamStanding) string {
