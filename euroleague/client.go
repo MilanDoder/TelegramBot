@@ -34,7 +34,7 @@ type StandingsResponse struct {
 }
 
 func GetStandings() ([]TeamStanding, error) {
-    url := "https://live.euroleague.net/api/Standings?seasonCode=E2024"
+    url := "https://api-live.euroleague.net/v1/standings?seasonCode=E2024"
 
     resp, err := http.Get(url)
     if err != nil {
