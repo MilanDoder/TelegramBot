@@ -102,6 +102,80 @@ model := client.GenerativeModel("gemini-2.0-flash")
 	return rezultat.String()
 }
 
+---------------------KvizPitanje
+func zapocniKviz(chatID int64) string {
+	pitanja := make([]KvizPitanje, len(svaPitanja))
+	copy(pitanja, svaPitanja)
+	rand.Shuffle(len(pitanja), func(i, j int) {
+		pitanja[i], pitanja[j] = pitanja[j], pitanja[i]
+	})
+	if len(pitanja) > 10 {
+		pitanja = pitanja[:10]
+	}
+
+	kvizovi[chatID] = &KvizStanje{
+		Pitanja:  pitanja,
+		Trenutno: 0,
+		Poeni:    0,
+		Aktivno:  true,
+	}
+
+	return formatujPitanje(kvizovi[chatID])
+}
+
+func formatujPitanje(k *KvizStanje) string {
+	p := k.Pitanja[k.Trenutno]
+	return fmt.Sprintf("❓ Pitanje %d/%d\n\n%s\n\nA) %s\nB) %s\nC) %s\nD) %s\n\nOdgovori sa A, B, C ili D",
+		k.Trenutno+1, len(k.Pitanja),
+		p.Pitanje,
+		p.Opcije[0], p.Opcije[1], p.Opcije[2], p.Opcije[3])
+}
+
+func odgovoriNaKviz(chatID int64, odgovor string) string {
+	k, postoji := kvizovi[chatID]
+	if !postoji || !k.Aktivno {
+		return "Nema aktivnog kviza. Pokreni ga sa /kviz"
+	}
+
+	mapa := map[string]int{"A": 0, "B": 1, "C": 2, "D": 3}
+	idx, ok := mapa[strings.ToUpper(strings.TrimSpace(odgovor))]
+	if !ok {
+		return "Odgovori sa A, B, C ili D"
+	}
+
+	p := k.Pitanja[k.Trenutno]
+	var odg string
+
+	if idx == p.Tacan {
+		k.Poeni++
+		odg = "✅ Tacno!\n\n"
+	} else {
+		odg = fmt.Sprintf("❌ Netacno! Tacan odgovor: %s) %s\n\n", []string{"A", "B", "C", "D"}[p.Tacan], p.Opcije[p.Tacan])
+	}
+
+	k.Trenutno++
+
+	if k.Trenutno >= len(k.Pitanja) {
+		k.Aktivno = false
+		poruka := ""
+		switch {
+		case k.Poeni >= 9:
+			poruka = "Sportski genije! 🏆"
+		case k.Poeni >= 7:
+			poruka = "Odlicno! 🌟"
+		case k.Poeni >= 5:
+			poruka = "Solidno, moze i bolje! 👍"
+		default:
+			poruka = "Vežbaj više! 💪"
+		}
+		return odg + fmt.Sprintf("🏁 Kviz gotov!\n\nRezultat: %d/%d\n%s\n\nZa novi kviz pošalji /kviz", k.Poeni, len(k.Pitanja), poruka)
+	}
+
+	return odg + formatujPitanje(k)
+}
+------------------------------KVIZ
+
+
 func main() {
 	godotenv.Load()
 	telegramToken := os.Getenv("TELEGRAM_TOKEN")
@@ -129,7 +203,10 @@ func main() {
 		statistika[tekst]++
 
 		var odgovor string
-
+		k, kvizAktivan := kvizovi[chatID]
+		if kvizAktivan && k.Aktivno && !strings.HasPrefix(tekst, "/") {
+			odgovor = odgovoriNaKviz(chatID, tekst)
+		} else {
 		switch {
 		case tekst == "/start":
 			odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs — kurs evra i dolara\n/statistika — statistika korišćenja\n/ai [pitanje] — pitaj AI\n\nPrimeri:\n/prognoza Beograd?"
@@ -152,6 +229,8 @@ func main() {
 			odgovor = dohvatiVreme(grad, weatherKey)
 		case tekst == "/prognoza":
 			odgovor = "Napiši grad posle komande, npr:\n/prognoza Beograd"
+		case tekst == "/kviz":
+				odgovor = zapocniKviz(chatID)
 		// case strings.HasPrefix(tekst, "/ai "):
 		// 	pitanje := strings.TrimPrefix(tekst, "/ai ")
 			//odgovor = "🤖 " + pitajGemini(geminiKey, pitanje)
@@ -160,7 +239,7 @@ func main() {
 		default:
 			odgovor = "Ne razumem tu komandu. Probaj /start"
 		}
-
+	}
 		msg := tgbotapi.NewMessage(chatID, odgovor)
 		bot.Send(msg)
 	}
