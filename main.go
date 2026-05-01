@@ -195,7 +195,7 @@ func main() {
 	// geminiKey := os.Getenv("GEMINI_KEY")
 	weatherKey := os.Getenv("WEATHER_KEY")
 
-	if telegramToken == "" || geminiKey == "" || weatherKey == "" {
+	if telegramToken == ""  || weatherKey == "" {
 		log.Fatal("❌ Nedostaju environment varijable!")
 	}
 
