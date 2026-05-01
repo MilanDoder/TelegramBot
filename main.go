@@ -313,7 +313,7 @@ func main() {
 		} else {
 			switch {
 			case tekst == "/start":
-    				odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs [valuta] — kurs valute\n/kviz — sportski kviz\n/kolo [broj] — rezultati Evrolige\n/statistika — statistika korišćenja\n\nPrimeri:\n/prognoza Beograd\n/kurs EUR\n/kolo 5 /evroliga_tabela — tabela Evrolige"			
+    				odgovor = "Zdravo! 👋 Ja sam tvoj bot!\n\nKomande:\n/vreme — trenutno vreme i datum\n/prognoza [grad] — vremenska prognoza\n/slucajno — nasumičan broj\n/kurs [valuta] — kurs valute\n/kviz — sportski kviz\n/kolo [broj] — rezultati Evrolige\n/statistika — statistika korišćenja\n\nPrimeri:\n/prognoza Beograd\n/kurs EUR\n/kolo 5\n /evroliga_tabela — tabela Evrolige"			
 			case tekst == "/vreme":
 				odgovor = "🕐 " + time.Now().Format("02.01.2006. u 15:04:05")
 			case tekst == "/slucajno":
