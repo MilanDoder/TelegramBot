@@ -121,22 +121,7 @@ func FormatStandings(standings []TeamStanding) string {
     return msg
 }
 
-func FormatStandings(standings []TeamStanding) string {
-    msg := "🏀 *Evroliga — Tabela*\n\n"
-    msg += "`#   Tim              W  L`\n"
 
-    for _, t := range standings {
-        marker := "🟢"
-        if t.Position > 8 {
-            marker = "🔴"
-        }
-        msg += fmt.Sprintf("%s `%2d. %-16s %2d %2d`\n",
-            marker, t.Position, t.Team, t.Wins, t.Losses)
-    }
-
-    msg += "\n🟢 Playoff  🔴 Eliminisan"
-    return msg
-}
 func handleKolo(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) string {
     parts := strings.Fields(msg.Text)
 
