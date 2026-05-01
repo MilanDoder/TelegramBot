@@ -58,15 +58,20 @@ type VremeResponse struct {
 }
 
 type TeamStanding struct {
-    Team     string `xml:"club_name"`
+    Name     string `xml:"name"`
+    Code     string `xml:"code"`
+    Position int    `xml:"ranking"`
     Wins     int    `xml:"wins"`
     Losses   int    `xml:"losses"`
-    Position int    `xml:"position"`
+}
+
+type Group struct {
+    Teams []TeamStanding `xml:"team"`
 }
 
 type StandingsResponse struct {
-    XMLName  xml.Name       `xml:"standings"`
-    Teams    []TeamStanding `xml:"team"`
+    XMLName xml.Name `xml:"standings"`
+    Group   Group    `xml:"group"`
 }
 
 func GetStandings() ([]TeamStanding, error) {
@@ -88,11 +93,32 @@ func GetStandings() ([]TeamStanding, error) {
         return nil, fmt.Errorf("greška pri parsiranju XML: %w", err)
     }
 
-    if len(result.Teams) == 0 {
+    if len(result.Group.Teams) == 0 {
         return nil, fmt.Errorf("nema podataka za tabelu")
     }
 
-    return result.Teams, nil
+    return result.Group.Teams, nil
+}
+
+func FormatStandings(standings []TeamStanding) string {
+    msg := "🏀 *Evroliga — Tabela 2024/25*\n\n"
+
+    for _, t := range standings {
+        marker := "🟢"
+        if t.Position > 8 {
+            marker = "🔴"
+        }
+        // Zvezda i Partizan dobijaju srpsku zastavu
+        name := t.Name
+        if t.Code == "RED" || t.Code == "PAR" {
+            name = "🇷🇸 " + t.Name
+        }
+        msg += fmt.Sprintf("%s `%2d. %-35s %2d-%2d`\n",
+            marker, t.Position, name, t.Wins, t.Losses)
+    }
+
+    msg += "\n🟢 Playoff  🔴 Eliminisan"
+    return msg
 }
 
 func FormatStandings(standings []TeamStanding) string {
