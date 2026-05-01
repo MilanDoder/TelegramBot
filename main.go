@@ -23,6 +23,21 @@ type KursResponse struct {
 	Rates map[string]float64 `json:"rates"`
 }
 
+type KvizPitanje struct {
+	Pitanje string
+	Opcije  [4]string
+	Tacan   int
+}
+
+type KvizStanje struct {
+	Pitanja  []KvizPitanje
+	Trenutno int
+	Poeni    int
+	Aktivno  bool
+}
+
+var kvizovi = map[int64]*KvizStanje{}
+
 type VremeResponse struct {
 	Main struct {
 		Temp      float64 `json:"temp"`
