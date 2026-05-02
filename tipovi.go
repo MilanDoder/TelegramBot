@@ -1,9 +1,9 @@
 package main
 
 type KvizPitanje struct {
-	Pitanje  string
-	Opcije   []string
-	Tacan    int
+	Pitanje string
+	Opcije  []string
+	Tacan   int
 }
 
 type KvizStanje struct {
@@ -13,7 +13,6 @@ type KvizStanje struct {
 	Aktivno  bool
 }
 
-// OpenTrivia API response strukture
 type OTDBResponse struct {
 	ResponseCode int          `json:"response_code"`
 	Results      []OTDBResult `json:"results"`
