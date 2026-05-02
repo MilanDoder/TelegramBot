@@ -13,7 +13,8 @@ import (
 	"strconv"
     "TelegramBot/euroleague" 
 	"io"
-	"encoding/xml"  // ← dodaj ovo
+	"encoding/xml"
+	"html"  // ← dodaj ovo
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/joho/godotenv"
@@ -120,7 +121,58 @@ func FormatStandings(standings []TeamStanding) string {
     msg += "\n🟢 Playoff  🔴 Eliminisan"
     return msg
 }
+func dohvatiPitanjaIzAPI(categoryID string) ([]KvizPitanje, error) {
+	url := "https://opentdb.com/api.php?amount=10&type=multiple"
+	if categoryID != "" {
+		url += "&category=" + categoryID
+	}
 
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var data OTDBResponse
+	json.NewDecoder(resp.Body).Decode(&data)
+
+	if data.ResponseCode != 0 {
+		return nil, fmt.Errorf("API greška: kod %d", data.ResponseCode)
+	}
+
+	var pitanja []KvizPitanje
+	for _, r := range data.Results {
+		// Spoji tacne i netacne odgovore
+		opcije := append(r.IncorrectAnswers, r.CorrectAnswer)
+
+		// Shuffle opcija
+		rand.Shuffle(len(opcije), func(i, j int) {
+			opcije[i], opcije[j] = opcije[j], opcije[i]
+		})
+
+		// Nadji index tacnog odgovora nakon shufflea
+		tacanIdx := 0
+		for i, o := range opcije {
+			if o == r.CorrectAnswer {
+				tacanIdx = i
+				break
+			}
+		}
+
+		pitanja = append(pitanja, KvizPitanje{
+			Pitanje: html.UnescapeString(r.Question),
+			Opcije:  []string{
+				html.UnescapeString(opcije[0]),
+				html.UnescapeString(opcije[1]),
+				html.UnescapeString(opcije[2]),
+				html.UnescapeString(opcije[3]),
+			},
+			Tacan: tacanIdx,
+		})
+	}
+
+	return pitanja, nil
+}
 
 func handleKolo(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) string {
     parts := strings.Fields(msg.Text)
@@ -218,14 +270,29 @@ func pitajGemini(apiKey, pitanje string) string {
 	return rezultat.String()
 }
 
-func zapocniKviz(chatID int64) string {
-	pitanja := make([]KvizPitanje, len(svaPitanja))
-	copy(pitanja, svaPitanja)
-	rand.Shuffle(len(pitanja), func(i, j int) {
-		pitanja[i], pitanja[j] = pitanja[j], pitanja[i]
-	})
-	if len(pitanja) > 10 {
-		pitanja = pitanja[:10]
+// func zapocniKviz(chatID int64) string {
+// 	pitanja := make([]KvizPitanje, len(svaPitanja))
+// 	copy(pitanja, svaPitanja)
+// 	rand.Shuffle(len(pitanja), func(i, j int) {
+// 		pitanja[i], pitanja[j] = pitanja[j], pitanja[i]
+// 	})
+// 	if len(pitanja) > 10 {
+// 		pitanja = pitanja[:10]
+// 	}
+
+// 	kvizovi[chatID] = &KvizStanje{
+// 		Pitanja:  pitanja,
+// 		Trenutno: 0,
+// 		Poeni:    0,
+// 		Aktivno:  true,
+// 	}
+
+// 	return formatujPitanje(kvizovi[chatID])
+// }
+func zapocniKviz(chatID int64, categoryID string) string {
+	pitanja, err := dohvatiPitanjaIzAPI(categoryID)
+	if err != nil || len(pitanja) == 0 {
+		return "❌ Greška pri dohvatanju pitanja. Pokušaj ponovo."
 	}
 
 	kvizovi[chatID] = &KvizStanje{
@@ -237,7 +304,6 @@ func zapocniKviz(chatID int64) string {
 
 	return formatujPitanje(kvizovi[chatID])
 }
-
 func formatujPitanje(k *KvizStanje) string {
 	p := k.Pitanja[k.Trenutno]
 	return fmt.Sprintf("❓ Pitanje %d/%d\n\n%s\n\nA) %s\nB) %s\nC) %s\nD) %s\n\nOdgovori sa A, B, C ili D",
@@ -245,6 +311,13 @@ func formatujPitanje(k *KvizStanje) string {
 		p.Pitanje,
 		p.Opcije[0], p.Opcije[1], p.Opcije[2], p.Opcije[3])
 }
+// func formatujPitanje(k *KvizStanje) string {
+// 	p := k.Pitanja[k.Trenutno]
+// 	return fmt.Sprintf("❓ Pitanje %d/%d\n\n%s\n\nA) %s\nB) %s\nC) %s\nD) %s\n\nOdgovori sa A, B, C ili D",
+// 		k.Trenutno+1, len(k.Pitanja),
+// 		p.Pitanje,
+// 		p.Opcije[0], p.Opcije[1], p.Opcije[2], p.Opcije[3])
+// }
 
 func odgovoriNaKviz(chatID int64, odgovor string) string {
 	k, postoji := kvizovi[chatID]
@@ -349,7 +422,25 @@ func main() {
 			case tekst == "/prognoza":
 				odgovor = "Napiši grad posle komande, npr:\n/prognoza Beograd"
 			case tekst == "/kviz":
-				odgovor = zapocniKviz(chatID)
+				odgovor = zapocniKviz(chatID, "")          // random sve kategorije
+
+			case tekst == "/kviz sport":
+				odgovor = zapocniKviz(chatID, "21")        // Sports
+
+			case tekst == "/kviz film":
+				odgovor = zapocniKviz(chatID, "11")        // Film
+
+			case tekst == "/kviz muzika":
+				odgovor = zapocniKviz(chatID, "12")        // Music
+
+			case tekst == "/kviz nauka":
+				odgovor = zapocniKviz(chatID, "17")        // Science & Nature
+
+			case tekst == "/kviz istorija":
+				odgovor = zapocniKviz(chatID, "23")        // History
+
+			case tekst == "/kviz geografija":
+				odgovor = zapocniKviz(chatID, "22")        // Geography
 			case strings.HasPrefix(tekst, "/kolo"):
 				odgovor = handleKolo(bot, update.Message)
 				msg := tgbotapi.NewMessage(chatID, odgovor)
