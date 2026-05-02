@@ -74,7 +74,30 @@ type StandingsResponse struct {
     XMLName xml.Name `xml:"standings"`
     Group   Group    `xml:"group"`
 }
+type KvizPitanje struct {
+	Pitanje  string
+	Opcije   []string
+	Tacan    int
+}
 
+type KvizStanje struct {
+	Pitanja  []KvizPitanje
+	Trenutno int
+	Poeni    int
+	Aktivno  bool
+}
+
+// OpenTrivia API response strukture
+type OTDBResponse struct {
+	ResponseCode int          `json:"response_code"`
+	Results      []OTDBResult `json:"results"`
+}
+
+type OTDBResult struct {
+	Question         string   `json:"question"`
+	CorrectAnswer    string   `json:"correct_answer"`
+	IncorrectAnswers []string `json:"incorrect_answers"`
+}
 func GetStandings() ([]TeamStanding, error) {
     url := "https://api-live.euroleague.net/v1/standings?seasonCode=E2024"
 
